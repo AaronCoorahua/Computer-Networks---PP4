@@ -34,43 +34,52 @@ int main(int argc, char *argv[]) {
             case ':':
             case '?':
             default:
-                std::cout << "usage: " << argv[0] << " -d [destination ip] -v [Log Level]" << std::endl;
+                FATAL << "usage: " << argv[0] << " -d [destination ip] -v [Log Level]" << ENDL;
                 exit(-1);
         }
     }
 
     if (destIP.empty()) {
-        std::cout << "Destination IP is required." << std::endl;
-        std::cout << "usage: " << argv[0] << " -d [destination ip] -v [Log Level]" << std::endl;
+        FATAL << "Destination IP is required." << ENDL;
+        FATAL << "usage: " << argv[0] << " -d [destination ip] -v [Log Level]" << ENDL;
         exit(-1);
     }
 
     // Create raw socket
     int sockfd = socket(AF_INET, SOCK_RAW, IPPROTO_ICMP);
     if (sockfd < 0) {
-        perror("Socket creation failed. Need root privileges.");
+        FATAL << "Socket creation failed. Need root privileges." << ENDL;
+        perror("Socket creation failed");
         exit(EXIT_FAILURE);
     }
+
+    INFO << "Raw socket created successfully." << ENDL;
 
     // Set destination address
     struct sockaddr_in dest_addr;
     memset(&dest_addr, 0, sizeof(dest_addr));
     dest_addr.sin_family = AF_INET;
     if (inet_pton(AF_INET, destIP.c_str(), &dest_addr.sin_addr) != 1) {
-        perror("Invalid destination IP address");
+        FATAL << "Invalid destination IP address: " << destIP << ENDL;
         exit(EXIT_FAILURE);
     }
 
+    INFO << "Destination IP set to " << destIP << ENDL;
+
     int max_ttl = 30;
     int sequence_number = 0;
+    int datagrams_sent = 0;
     bool reached = false;
 
     for (int ttl = 2; ttl <= max_ttl; ++ttl) {
         // Set the TTL option on the socket
         if (setsockopt(sockfd, IPPROTO_IP, IP_TTL, &ttl, sizeof(ttl)) < 0) {
+            ERROR << "Failed to set TTL option for TTL = " << ttl << ENDL;
             perror("Failed to set socket option");
-            exit(EXIT_FAILURE);
+            continue;
         }
+
+        DEBUG << "TTL set to " << ttl << ENDL;
 
         // Build ICMP Echo Request packet
         char sendbuf[64];
@@ -80,18 +89,19 @@ int main(int argc, char *argv[]) {
         icmp_hdr->icmp_code = 0;
         icmp_hdr->icmp_id = htons(getpid() & 0xFFFF);
         icmp_hdr->icmp_seq = htons(sequence_number++);
-        // Compute ICMP checksum
         icmp_hdr->icmp_cksum = 0;
         icmp_hdr->icmp_cksum = checksum((unsigned short *)icmp_hdr, sizeof(struct icmp));
 
         // Send the packet
         ssize_t bytes_sent = sendto(sockfd, sendbuf, sizeof(struct icmp), 0, (struct sockaddr *)&dest_addr, sizeof(dest_addr));
         if (bytes_sent <= 0) {
+            WARNING << "Failed to send datagram for TTL = " << ttl << ENDL;
             perror("Failed to send packet");
             continue;
         }
 
-        DEBUG << "Sent " << bytes_sent << " bytes to " << destIP << ENDL;
+        datagrams_sent++;
+        INFO << "Datagram sent: TTL = " << ttl << ", Bytes = " << bytes_sent << ENDL;
 
         // Set up select for timeout
         fd_set readfds;
@@ -104,11 +114,12 @@ int main(int argc, char *argv[]) {
 
         int retval = select(sockfd + 1, &readfds, NULL, NULL, &tv);
         if (retval == -1) {
+            ERROR << "Select() failed." << ENDL;
             perror("select()");
             exit(EXIT_FAILURE);
         } else if (retval == 0) {
             // Timeout occurred
-            std::cout << "No response with TTL of " << ttl << std::endl;
+            WARNING << "No response with TTL = " << ttl << ENDL;
             continue;
         } else {
             // Data is available, receive it
@@ -118,6 +129,7 @@ int main(int argc, char *argv[]) {
 
             ssize_t len = recvfrom(sockfd, recvbuf, sizeof(recvbuf), 0, (struct sockaddr *)&recv_addr, &addr_len);
             if (len <= 0) {
+                ERROR << "Failed to receive packet for TTL = " << ttl << ENDL;
                 perror("Failed to receive packet");
                 continue;
             }
@@ -134,30 +146,29 @@ int main(int argc, char *argv[]) {
                 // Echo Reply received
                 char addr_str[INET_ADDRSTRLEN];
                 inet_ntop(AF_INET, &(recv_addr.sin_addr), addr_str, INET_ADDRSTRLEN);
-                std::cout << "Reached destination: " << addr_str << std::endl;
+                INFO << "Reached destination: " << addr_str << ENDL;
                 reached = true;
                 break;
             } else if (icmp_hdr_recv->icmp_type == ICMP_TIME_EXCEEDED) {
                 // Time Exceeded message received
                 char addr_str[INET_ADDRSTRLEN];
                 inet_ntop(AF_INET, &(recv_addr.sin_addr), addr_str, INET_ADDRSTRLEN);
-                std::cout << "TTL " << ttl << ": " << addr_str << std::endl;
+                INFO << "TTL " << ttl << ": " << addr_str << ENDL;
             } else {
                 // Other ICMP message
-                if (LOG_LEVEL > 0) {
-                    char addr_str[INET_ADDRSTRLEN];
-                    inet_ntop(AF_INET, &(recv_addr.sin_addr), addr_str, INET_ADDRSTRLEN);
-                    std::cout << "Received ICMP type " << (int)icmp_hdr_recv->icmp_type
-                              << " from " << addr_str << std::endl;
-                }
+                TRACE << "Received ICMP type " << (int)icmp_hdr_recv->icmp_type
+                      << " from " << inet_ntoa(recv_addr.sin_addr) << ENDL;
             }
         }
     }
 
+    INFO << "Total datagrams sent: " << datagrams_sent << ENDL;
+
     if (!reached) {
-        std::cout << "Did not reach destination within " << max_ttl << " hops." << std::endl;
+        WARNING << "Did not reach destination within " << max_ttl << " hops." << ENDL;
     }
 
     close(sockfd);
+    INFO << "Socket closed. Program finished." << ENDL;
     return 0;
 }
