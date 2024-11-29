@@ -1,3 +1,5 @@
+// traceroute.h
+
 #ifndef HEADER_H
 #define HEADER_H 
 
@@ -11,9 +13,14 @@
 #include <netinet/in.h>
 #include <sys/socket.h>
 #include <netinet/ip_icmp.h>
+#include <sys/time.h>
+#include <sys/types.h>
+#include <netdb.h>
+#include <cstdlib>
 
-
+// Define LOG_LEVEL and logging macros
 inline int LOG_LEVEL = 0;
+
 #define TRACE   if (LOG_LEVEL > 5) { std::cout << "TRACE: "
 #define DEBUG   if (LOG_LEVEL > 4) { std::cout << "DEBUG: "
 #define INFO    if (LOG_LEVEL > 3) { std::cout << "INFO: "
@@ -24,4 +31,4 @@ inline int LOG_LEVEL = 0;
 
 uint16_t checksum(unsigned short *buffer, int size);
 
-#endif
+#endif // HEADER_H
