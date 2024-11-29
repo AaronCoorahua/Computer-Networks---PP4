@@ -163,7 +163,8 @@ int main(int argc, char *argv[]) {
         }
     }
 
-    INFO << "Total datagrams sent: " << datagrams_sent << ENDL;
+    // Print the total datagrams sent
+    std::cout << "Total datagrams sent: " << datagrams_sent << std::endl;
 
     if (!reached) {
         WARNING << "Did not reach destination within " << max_ttl << " hops." << ENDL;
