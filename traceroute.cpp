@@ -1,5 +1,3 @@
-// traceroute.cpp
-
 #include "traceroute.h"
 
 uint16_t checksum(unsigned short *buffer, int size) {
@@ -120,6 +118,7 @@ int main(int argc, char *argv[]) {
         } else if (retval == 0) {
             // Timeout occurred
             WARNING << "No response with TTL = " << ttl << ENDL;
+            std::cout << "No response with TTL = " << ttl << std::endl;
             continue;
         } else {
             // Data is available, receive it
@@ -146,6 +145,7 @@ int main(int argc, char *argv[]) {
                 // Echo Reply received
                 char addr_str[INET_ADDRSTRLEN];
                 inet_ntop(AF_INET, &(recv_addr.sin_addr), addr_str, INET_ADDRSTRLEN);
+                std::cout << "Reached destination: " << addr_str << std::endl;
                 INFO << "Reached destination: " << addr_str << ENDL;
                 reached = true;
                 break;
@@ -153,6 +153,7 @@ int main(int argc, char *argv[]) {
                 // Time Exceeded message received
                 char addr_str[INET_ADDRSTRLEN];
                 inet_ntop(AF_INET, &(recv_addr.sin_addr), addr_str, INET_ADDRSTRLEN);
+                std::cout << "TTL " << ttl << ": " << addr_str << std::endl;
                 INFO << "TTL " << ttl << ": " << addr_str << ENDL;
             } else {
                 // Other ICMP message
