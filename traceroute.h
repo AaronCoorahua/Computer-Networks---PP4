@@ -1,5 +1,3 @@
-// traceroute.h
-
 #ifndef HEADER_H
 #define HEADER_H 
 
@@ -18,7 +16,6 @@
 #include <netdb.h>
 #include <cstdlib>
 
-// Define LOG_LEVEL and logging macros
 inline int LOG_LEVEL = 0;
 
 #define TRACE   if (LOG_LEVEL > 5) { std::cout << "TRACE: "
