@@ -139,16 +139,9 @@ int main(int argc, char *argv[]) {
                 break;
             } else if (icmp_hdr_recv->icmp_type == ICMP_TIME_EXCEEDED) {
                 // Time Exceeded message received
-                // Extract the original IP header and ICMP header from the data section
-                struct ip *orig_ip_hdr = (struct ip *)(recvbuf + ip_hdr_len + sizeof(struct icmp));
-                int orig_ip_hdr_len = orig_ip_hdr->ip_hl * 4;
-                struct icmp *orig_icmp_hdr = (struct icmp *)((char *)orig_ip_hdr + orig_ip_hdr_len);
-
-                if (orig_icmp_hdr->icmp_id == htons(getpid() & 0xFFFF)) {
-                    char addr_str[INET_ADDRSTRLEN];
-                    inet_ntop(AF_INET, &(recv_addr.sin_addr), addr_str, INET_ADDRSTRLEN);
-                    std::cout << "TTL " << ttl << ": " << addr_str << std::endl;
-                }
+                char addr_str[INET_ADDRSTRLEN];
+                inet_ntop(AF_INET, &(recv_addr.sin_addr), addr_str, INET_ADDRSTRLEN);
+                std::cout << "TTL " << ttl << ": " << addr_str << std::endl;
             } else {
                 // Other ICMP message
                 if (LOG_LEVEL > 0) {
